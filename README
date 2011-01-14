@@ -1,0 +1,4 @@
+Utility to dump actionscript class structure from a SWF into .as files
+
+Usage:
+	java -cp .:$FLEX_HOME/lib/swfutils.jar Main swf_to_dump.swf where_to_dump
