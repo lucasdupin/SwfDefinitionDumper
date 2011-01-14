@@ -100,7 +100,7 @@ public class CustomAbcPrinter extends WideOpenAbcPrinter {
 				.toString());
 		String modifier = getModifier(method, methodName);
 
-		buffer.append("    " + modifier + " " + methodName + "(");
+		buffer.append("    " + modifier + " function " + methodName + "(");
 		for (int x = 0; x < method.paramCount; x++) {
 			// TODO get actual parameter name
 			buffer.append("arg"
