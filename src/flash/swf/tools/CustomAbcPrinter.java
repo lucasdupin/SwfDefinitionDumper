@@ -104,8 +104,7 @@ public class CustomAbcPrinter extends WideOpenAbcPrinter {
 		buffer.append("    " + modifier + " function " + methodName + "(");
 		for (int x = 0; x < method.paramCount; x++) {
 			// TODO get actual parameter name
-			buffer.append("arg"
-					+ x
+			buffer.append(stringConstants[method.paramNames[x]]
 					+ ":"
 					+ sanitizeType(multiNameConstants[method.params[x]]
 							.toString()));
