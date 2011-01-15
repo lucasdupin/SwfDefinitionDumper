@@ -5,6 +5,7 @@ import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.HashMap;
 
+
 public class CustomAbcPrinter extends WideOpenAbcPrinter {
 
 	ClassInfo publicClass;
@@ -142,10 +143,8 @@ public class CustomAbcPrinter extends WideOpenAbcPrinter {
 
 		// Check if it is a getter or setter
 		int gsIndex = unmodified.name.indexOf(sanitizedName + "/");
-		if (gsIndex > -1) {
-			m += " "
-					+ unmodified.name.substring(gsIndex
-							+ sanitizedName.length() + 1);
+		if (gsIndex > -1 && method.name != method.className) {
+			m += " " + unmodified.name.substring(gsIndex + sanitizedName.length() + 1);
 		}
 
 		return m;
