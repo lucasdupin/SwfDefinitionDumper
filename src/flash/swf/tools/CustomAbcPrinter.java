@@ -83,37 +83,41 @@ public class CustomAbcPrinter extends WideOpenAbcPrinter {
 		buffer.append("  " + klass.modifier + " " + (klass.isInterface?"interface":"class") + " " + klass.name + " {\n");
 		// Class methods
 		for (MethodInfo method : klass.methods) {
-			appendMethod(method, buffer);
+			appendMethod(method, buffer, klass);
 		}
 		for (MethodInfo method : klass.classMethods) {
-			appendMethod(method, buffer, "static");
+			appendMethod(method, buffer, klass, "static ");
 		}
 		buffer.append("  }\n");
 	}
 
 	private void appendMethod(MethodInfo method, StringBuffer buffer) {
-		appendMethod(method, buffer, "");
+		appendMethod(method, buffer, null, "");
 	}
-	private void appendMethod(MethodInfo method, StringBuffer buffer, String modifiers) {
+	private void appendMethod(MethodInfo method, StringBuffer buffer, ClassInfo klass) {
+		appendMethod(method, buffer, klass, "");
+	}
+	private void appendMethod(MethodInfo method, StringBuffer buffer, ClassInfo klass, String modifiers) {
 
-		// TODO check if it's static or not
 		String[] nameComponents = method.name.split(":");
 		String methodName = nameComponents[nameComponents.length - 1];
-		String returnType = sanitizeType(multiNameConstants[method.returnType]
-				.toString());
-		String modifier = getModifier(method, methodName) + " " + modifiers;
+		String returnType = sanitizeType(multiNameConstants[method.returnType].toString());
+		
+		String modifier = "";
+		//Check if we're an interface (they do not have motifiers
+		if(klass == null || !klass.isInterface)
+			modifier = getModifier(method, methodName) + " " + modifiers;
 
-		buffer.append("    " + modifier + " function " + methodName + "(");
+		buffer.append("    " + modifier + "function " + getterSetter(method, methodName) + methodName + "(");
+		//Add parameters
 		for (int x = 0; x < method.paramCount; x++) {
-			// TODO get actual parameter name
-			buffer.append(stringConstants[method.paramNames[x]]
-					+ ":"
-					+ sanitizeType(multiNameConstants[method.params[x]]
-							.toString()));
+			buffer.append(stringConstants[method.paramNames[x]] + ":" + sanitizeType(multiNameConstants[method.params[x]].toString()));
 			if (x < method.paramCount - 1)
 				buffer.append(", ");
 		}
 		buffer.append(")");
+		
+		//Add return type
 		if (returnType.length() > 0)
 			buffer.append(":" + returnType);
 		buffer.append(";\n");
@@ -135,17 +139,25 @@ public class CustomAbcPrinter extends WideOpenAbcPrinter {
 		MethodInfo unmodified = unmodifiedMethods.get(method);
 
 		// public, private, protected...
-		String m = "public";
+		String m = "public ";
 		int nameIndex = unmodified.name.indexOf(":" + sanitizedName);
 		int slashIndex = unmodified.name.indexOf('/');
 		if (slashIndex > -1 && nameIndex > slashIndex) {
-			m = unmodified.name.substring(slashIndex + 1, nameIndex);
+			m = unmodified.name.substring(slashIndex + 1, nameIndex) + " ";
 		}
+
+		return m;
+
+	}
+	private String getterSetter(MethodInfo method, String sanitizedName) {
+
+		String m="";
+		MethodInfo unmodified = unmodifiedMethods.get(method);
 
 		// Check if it is a getter or setter
 		int gsIndex = unmodified.name.indexOf(sanitizedName + "/");
 		if (gsIndex > -1 && method.name != method.className) {
-			m += " " + unmodified.name.substring(gsIndex + sanitizedName.length() + 1);
+			m += unmodified.name.substring(gsIndex + sanitizedName.length() + 1) + " ";
 		}
 
 		return m;
