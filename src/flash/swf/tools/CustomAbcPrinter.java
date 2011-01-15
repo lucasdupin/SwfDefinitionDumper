@@ -80,7 +80,7 @@ public class CustomAbcPrinter extends WideOpenAbcPrinter {
 
 	private void appendClass(ClassInfo klass, StringBuffer buffer) {
 
-		buffer.append("  " + klass.modifier + " " + (klass.isInterface?"interface":"class") + " " + klass.name + " {\n");
+		buffer.append("  " + klass.getModifier() + " " + (klass.isInterface?"interface":"class") + " " + klass.name + " {\n");
 		// Class methods
 		for (MethodInfo method : klass.methods) {
 			appendMethod(method, buffer, klass);
@@ -210,6 +210,8 @@ public class CustomAbcPrinter extends WideOpenAbcPrinter {
 			// Constructor
 			classDescription.methods.add(mi);
 			classDescription.isInterface = (b & 0x4) == 0x4;
+			classDescription.isDynamic = !((b & 0x1) == 0x1);
+			classDescription.isFinal = !((b & 0x2) == 0x2);
 
 			// Add to the list
 			classes.add(classDescription);
@@ -336,13 +338,15 @@ public class CustomAbcPrinter extends WideOpenAbcPrinter {
 	}
 
 	class ClassInfo {
-		String modifier;
+		private String modifier;
 		String name;
 		String abcName;
 		String packageName;
 		String extendS;
 		String implementS;
 		boolean isInterface;
+		boolean isFinal;
+		boolean isDynamic;
 		ArrayList<MethodInfo> methods;
 		ArrayList<MethodInfo> classMethods;
 
@@ -372,6 +376,10 @@ public class CustomAbcPrinter extends WideOpenAbcPrinter {
 			String impl = (implementS == null ? "" : "implements " + implementS
 					+ " ");
 			return modifier + " class " + name + " " + ext + impl;
+		}
+		
+		public String getModifier() {
+			return modifier + (isDynamic? " dynamic":"") + (isFinal? " final":"");
 		}
 	}
 
