@@ -82,24 +82,26 @@ public class CustomAbcPrinter extends WideOpenAbcPrinter {
 
 		buffer.append("  " + klass.modifier + " class " + klass.name + " {\n");
 		// Class methods
-		for (MethodInfo method : methods) {
-			// Methods form the same class without $cinit
-			if (method.className == klass.abcName
-					&& method.name.indexOf("$cinit") == -1) {
-				appendMethod(method, buffer);
-			}
+		for (MethodInfo method : klass.methods) {
+			appendMethod(method, buffer);
+		}
+		for (MethodInfo method : klass.classMethods) {
+			appendMethod(method, buffer, "static");
 		}
 		buffer.append("  }\n");
 	}
 
 	private void appendMethod(MethodInfo method, StringBuffer buffer) {
+		appendMethod(method, buffer, "");
+	}
+	private void appendMethod(MethodInfo method, StringBuffer buffer, String modifiers) {
 
 		// TODO check if it's static or not
 		String[] nameComponents = method.name.split(":");
 		String methodName = nameComponents[nameComponents.length - 1];
 		String returnType = sanitizeType(multiNameConstants[method.returnType]
 				.toString());
-		String modifier = getModifier(method, methodName);
+		String modifier = getModifier(method, methodName) + " " + modifiers;
 
 		buffer.append("    " + modifier + " function " + methodName + "(");
 		for (int x = 0; x < method.paramCount; x++) {
@@ -193,9 +195,12 @@ public class CustomAbcPrinter extends WideOpenAbcPrinter {
 
 			// Compose class info
 			ClassInfo classDescription = new ClassInfo(name, base, s);
+			// Constructor
+			classDescription.methods.add(mi);
 
 			// Add to the list
 			classes.add(classDescription);
+			
 
 			int numTraits = (int) readU32(); // number of traits
 			printOffset();
@@ -226,6 +231,8 @@ public class CustomAbcPrinter extends WideOpenAbcPrinter {
 					mi.name = s;
 					mi.className = name;
 					mi.kind = kind;
+					//Add to the list of class methods
+					classDescription.methods.add(mi);
 					break;
 				}
 				if ((b >> 4 & 0x4) == 0x4) {
@@ -245,6 +252,7 @@ public class CustomAbcPrinter extends WideOpenAbcPrinter {
 		printOffset();
 		// System.out.println(n + " Class Entries");
 		for (int i = 0; i < n; i++) {
+			ClassInfo classDescription = classes.get(i);
 			int start = offset;
 			printOffset();
 			MethodInfo mi = methods[(int) readU32()];
@@ -293,6 +301,7 @@ public class CustomAbcPrinter extends WideOpenAbcPrinter {
 					mi.name = s;
 					mi.className = name;
 					mi.kind = kind;
+					classDescription.classMethods.add(mi);
 					break;
 				}
 				if ((b >> 4 & 0x4) == 0x4) {
@@ -320,9 +329,15 @@ public class CustomAbcPrinter extends WideOpenAbcPrinter {
 		String packageName;
 		String extendS;
 		String implementS;
+		ArrayList<MethodInfo> methods;
+		ArrayList<MethodInfo> classMethods;
 
 		public ClassInfo(String abcName, String extendS, String implementS) {
+			
+			methods = new ArrayList<WideOpenAbcPrinter.MethodInfo>();
+			classMethods = new ArrayList<WideOpenAbcPrinter.MethodInfo>();
 			this.abcName = abcName;
+			
 			if (extendS != null & extendS.length() > 0)
 				this.extendS = extendS;
 			if (implementS != null & implementS.length() > 0)
