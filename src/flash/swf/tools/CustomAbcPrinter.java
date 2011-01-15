@@ -80,7 +80,7 @@ public class CustomAbcPrinter extends WideOpenAbcPrinter {
 
 	private void appendClass(ClassInfo klass, StringBuffer buffer) {
 
-		buffer.append("  " + klass.modifier + " class " + klass.name + " {\n");
+		buffer.append("  " + klass.modifier + " " + (klass.isInterface?"interface":"class") + " " + klass.name + " {\n");
 		// Class methods
 		for (MethodInfo method : klass.methods) {
 			appendMethod(method, buffer);
@@ -197,6 +197,7 @@ public class CustomAbcPrinter extends WideOpenAbcPrinter {
 			ClassInfo classDescription = new ClassInfo(name, base, s);
 			// Constructor
 			classDescription.methods.add(mi);
+			classDescription.isInterface = (b & 0x4) == 0x4;
 
 			// Add to the list
 			classes.add(classDescription);
@@ -329,6 +330,7 @@ public class CustomAbcPrinter extends WideOpenAbcPrinter {
 		String packageName;
 		String extendS;
 		String implementS;
+		boolean isInterface;
 		ArrayList<MethodInfo> methods;
 		ArrayList<MethodInfo> classMethods;
 
