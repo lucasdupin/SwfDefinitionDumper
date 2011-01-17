@@ -5,6 +5,7 @@ import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.HashMap;
 
+
 public class CustomAbcPrinter extends WideOpenAbcPrinter {
 
 	ClassInfo publicClass;
@@ -79,39 +80,44 @@ public class CustomAbcPrinter extends WideOpenAbcPrinter {
 
 	private void appendClass(ClassInfo klass, StringBuffer buffer) {
 
-		buffer.append("  " + klass.modifier + " class " + klass.name + " {\n");
+		buffer.append("  " + klass.getModifier() + " " + (klass.isInterface?"interface":"class") + " " + klass.name + " {\n");
 		// Class methods
-		for (MethodInfo method : methods) {
-			// Methods form the same class without $cinit
-			if (method.className == klass.abcName
-					&& method.name.indexOf("$cinit") == -1) {
-				appendMethod(method, buffer);
-			}
+		for (MethodInfo method : klass.methods) {
+			appendMethod(method, buffer, klass);
+		}
+		for (MethodInfo method : klass.classMethods) {
+			appendMethod(method, buffer, klass, "static ");
 		}
 		buffer.append("  }\n");
 	}
 
 	private void appendMethod(MethodInfo method, StringBuffer buffer) {
+		appendMethod(method, buffer, null, "");
+	}
+	private void appendMethod(MethodInfo method, StringBuffer buffer, ClassInfo klass) {
+		appendMethod(method, buffer, klass, "");
+	}
+	private void appendMethod(MethodInfo method, StringBuffer buffer, ClassInfo klass, String modifiers) {
 
-		// TODO check if it's static or not
 		String[] nameComponents = method.name.split(":");
 		String methodName = nameComponents[nameComponents.length - 1];
-		String returnType = sanitizeType(multiNameConstants[method.returnType]
-				.toString());
-		String modifier = getModifier(method, methodName);
+		String returnType = sanitizeType(multiNameConstants[method.returnType].toString());
+		
+		String modifier = "";
+		//Check if we're an interface (they do not have motifiers
+		if(klass == null || !klass.isInterface)
+			modifier = getModifier(method, methodName) + " " + modifiers;
 
-		buffer.append("    " + modifier + " function " + methodName + "(");
+		buffer.append("    " + modifier + "function " + getterSetter(method, methodName) + methodName + "(");
+		//Add parameters
 		for (int x = 0; x < method.paramCount; x++) {
-			// TODO get actual parameter name
-			buffer.append("arg"
-					+ x
-					+ ":"
-					+ sanitizeType(multiNameConstants[method.params[x]]
-							.toString()));
+			buffer.append(stringConstants[method.paramNames[x]] + ":" + sanitizeType(multiNameConstants[method.params[x]].toString()));
 			if (x < method.paramCount - 1)
 				buffer.append(", ");
 		}
 		buffer.append(")");
+		
+		//Add return type
 		if (returnType.length() > 0)
 			buffer.append(":" + returnType);
 		buffer.append(";\n");
@@ -133,19 +139,25 @@ public class CustomAbcPrinter extends WideOpenAbcPrinter {
 		MethodInfo unmodified = unmodifiedMethods.get(method);
 
 		// public, private, protected...
-		String m = "public";
+		String m = "public ";
 		int nameIndex = unmodified.name.indexOf(":" + sanitizedName);
 		int slashIndex = unmodified.name.indexOf('/');
 		if (slashIndex > -1 && nameIndex > slashIndex) {
-			m = unmodified.name.substring(slashIndex + 1, nameIndex);
+			m = unmodified.name.substring(slashIndex + 1, nameIndex) + " ";
 		}
+
+		return m;
+
+	}
+	private String getterSetter(MethodInfo method, String sanitizedName) {
+
+		String m="";
+		MethodInfo unmodified = unmodifiedMethods.get(method);
 
 		// Check if it is a getter or setter
 		int gsIndex = unmodified.name.indexOf(sanitizedName + "/");
-		if (gsIndex > -1) {
-			m += " "
-					+ unmodified.name.substring(gsIndex
-							+ sanitizedName.length() + 1);
+		if (gsIndex > -1 && method.name != method.className) {
+			m += unmodified.name.substring(gsIndex + sanitizedName.length() + 1) + " ";
 		}
 
 		return m;
@@ -195,9 +207,15 @@ public class CustomAbcPrinter extends WideOpenAbcPrinter {
 
 			// Compose class info
 			ClassInfo classDescription = new ClassInfo(name, base, s);
+			// Constructor
+			classDescription.methods.add(mi);
+			classDescription.isInterface = (b & 0x4) == 0x4;
+			classDescription.isDynamic = !((b & 0x1) == 0x1);
+			classDescription.isFinal = !((b & 0x2) == 0x2);
 
 			// Add to the list
 			classes.add(classDescription);
+			
 
 			int numTraits = (int) readU32(); // number of traits
 			printOffset();
@@ -228,6 +246,8 @@ public class CustomAbcPrinter extends WideOpenAbcPrinter {
 					mi.name = s;
 					mi.className = name;
 					mi.kind = kind;
+					//Add to the list of class methods
+					classDescription.methods.add(mi);
 					break;
 				}
 				if ((b >> 4 & 0x4) == 0x4) {
@@ -247,6 +267,7 @@ public class CustomAbcPrinter extends WideOpenAbcPrinter {
 		printOffset();
 		// System.out.println(n + " Class Entries");
 		for (int i = 0; i < n; i++) {
+			ClassInfo classDescription = classes.get(i);
 			int start = offset;
 			printOffset();
 			MethodInfo mi = methods[(int) readU32()];
@@ -295,6 +316,7 @@ public class CustomAbcPrinter extends WideOpenAbcPrinter {
 					mi.name = s;
 					mi.className = name;
 					mi.kind = kind;
+					classDescription.classMethods.add(mi);
 					break;
 				}
 				if ((b >> 4 & 0x4) == 0x4) {
@@ -316,15 +338,24 @@ public class CustomAbcPrinter extends WideOpenAbcPrinter {
 	}
 
 	class ClassInfo {
-		String modifier;
+		private String modifier;
 		String name;
 		String abcName;
 		String packageName;
 		String extendS;
 		String implementS;
+		boolean isInterface;
+		boolean isFinal;
+		boolean isDynamic;
+		ArrayList<MethodInfo> methods;
+		ArrayList<MethodInfo> classMethods;
 
 		public ClassInfo(String abcName, String extendS, String implementS) {
+			
+			methods = new ArrayList<WideOpenAbcPrinter.MethodInfo>();
+			classMethods = new ArrayList<WideOpenAbcPrinter.MethodInfo>();
 			this.abcName = abcName;
+			
 			if (extendS != null & extendS.length() > 0)
 				this.extendS = extendS;
 			if (implementS != null & implementS.length() > 0)
@@ -345,6 +376,10 @@ public class CustomAbcPrinter extends WideOpenAbcPrinter {
 			String impl = (implementS == null ? "" : "implements " + implementS
 					+ " ");
 			return modifier + " class " + name + " " + ext + impl;
+		}
+		
+		public String getModifier() {
+			return modifier + (isDynamic? " dynamic":"") + (isFinal? " final":"");
 		}
 	}
 
