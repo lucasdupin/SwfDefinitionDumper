@@ -19,7 +19,7 @@ public class DefinitionAnalyzer extends TagHandler {
 			result.add(new AbcResult(filename, new CustomAbcPrinter(tag.abc).toString()));
 		} catch (Exception e) {
 			System.out.println("Could not generate dump for: " + filename);
-			System.out.println("Error: " + e.getMessage());
+			e.printStackTrace();
 		}
 		
 	}
